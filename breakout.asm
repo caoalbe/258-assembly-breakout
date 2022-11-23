@@ -11,9 +11,14 @@
 # - Base Address for Display:   0x10008000 ($gp)
 ##############################################################################
 
-    .data
+.data
 ##############################################################################
 # Immutable Data
+COLOURS:
+    .word 0xff0000    # red
+    .word 0x00ff00    # green
+    .word 0x0000ff    # blue
+    
 ##############################################################################
 # The address of the bitmap display. Don't forget to connect it!
 ADDR_DSPL:
@@ -29,12 +34,36 @@ ADDR_KBRD:
 ##############################################################################
 # Code
 ##############################################################################
-    .text
-    .globl main
+.text
+.globl main
 
     # Run the Brick Breaker game.
 main:
     # Initialize the game
+
+    # Draw the board
+    la $t0 COLOURS
+    lw $t0 0($t0)    # $t0 = 0xff0000 = red
+    
+    la $t1 ADDR_DSPL
+    lw $t1 0($t1)    # $t1 = top-left pixel
+
+    li $t2 64    # $t2 = width = 64
+    
+    li $t3 0    # $t3 = i = 0
+    
+horizontal_line_loop:  # todo: turn this into a function
+    slt $t4, $t3, $t2    # $t4 = i < width (1 or 0)
+    beq $t4 $0 end_horizontal_line
+    
+        sw $t0 0($t1)
+        addi $t1 $t1 4
+        addi $t3 $t3 1
+        
+        b horizontal_line_loop
+
+
+end_horizontal_line:
 
 game_loop:
     # 1a. Check if key has been pressed
