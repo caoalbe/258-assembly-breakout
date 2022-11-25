@@ -304,8 +304,8 @@ draw_board:
     # body
     
     # left wall
-    # draw_vertical(0, 0, 64, 0xdcddde)
-    # draw_vertical(1, 0, 64, 0xdcddde)
+    # draw_vertical(0, 0, 64, gray)
+    # draw_vertical(1, 0, 64, gray)
     li $a0 0
     li $a1 0
     li $a2 64
@@ -320,8 +320,8 @@ draw_board:
     jal draw_vertical
     
     # right wall
-    # draw_vertical(62, 0, 64, 0xdcddde)
-    # draw_vertical(63, 0, 64, 0xdcddde)
+    # draw_vertical(62, 0, 64, gray)
+    # draw_vertical(63, 0, 64, gray)
     li $a0 62
     li $a1 0
     li $a2 64
@@ -337,8 +337,8 @@ draw_board:
     
     
     # top wall
-    # draw_horizontal(0, 0, 64, 0xdcddde)
-    # draw_horizontal(0, 1, 64, 0xdcddde)
+    # draw_horizontal(0, 0, 64, gray)
+    # draw_horizontal(0, 1, 64, gray)
     li $a0 0
     li $a1 0
     li $a2 64
