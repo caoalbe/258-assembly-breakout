@@ -10,7 +10,7 @@
 # - Display height in pixels:   512
 # - Base Address for Display:   0x10008000 ($gp)
 ##############################################################################
-
+.eqv BLOCKS_COUNT 11
 .data
 ##############################################################################
 # Immutable Data
@@ -44,6 +44,9 @@ PADDLE:
     .word 20    # x-pos
     .word 60    # y-pos
     .word 24    # width
+    
+BLOCKS:         # each block uses 4 words (x, y, broken, colour)
+    .word 0:44  # 4 * BLOCKS_COUNT
 
 ##############################################################################
 # Code
@@ -62,8 +65,10 @@ main:
     
     jal draw_paddle
     
+    jal initialize_blocks_memory
+    jal draw_blocks
     
-
+    
 
 game_loop:
     # 1a. Check if key has been pressed
@@ -77,10 +82,115 @@ game_loop:
     
     
     # todo: sleep every cycle
-    jal draw_ball
-    jal update_ball
+    # jal draw_ball
+    # jal update_ball
     
     b game_loop
+    
+    
+    
+    
+# ---------------------------
+# draw_blocks
+draw_blocks:
+# draws from memory
+    # prologue
+    addi $sp $sp -36
+    sw $ra 0($sp)    # save return address into stack
+    sw $s0 4($sp)
+    sw $s1 8($sp)
+    sw $s2 12($sp)
+    sw $s3 16($sp)
+    sw $s4 20($sp)
+    sw $s5 24($sp)
+    sw $s6 28($sp)
+    sw $s7 32($sp)
+    
+    # body
+    la $s4 BLOCKS       # each block is 4 words
+    
+    # todo: support multiple rows
+    li $s5 0     # i = 0
+    li $s6 BLOCKS_COUNT    # target = BLOCKS_COUNT
+    draw_blocks_loop:
+        slt $t0 $s5 $s6     # $s7 = i < target (1 or 0)
+        beq $zero $t0 draw_blocks_epilogue
+        # loop body
+
+        # draw_horizontal(x-pos, y-pos, 3, colour)
+        lw $a0 0($s4)    # x-pos
+        lw $a1 4($s4)    # y-pos
+        li $a2 4         # 3
+        lw $a3 8($s4) # colour
+        jal draw_horizontal
+        
+        addi $s5 $s5 1    # i++
+        addi $s4 $s4 16   # next address
+        j draw_blocks_loop
+        
+    # epilogue
+    draw_blocks_epilogue:
+    lw $s7 32($sp)
+    lw $s6 28($sp)
+    lw $s5 24($sp)
+    lw $s4 20($sp)
+    lw $s3 16($sp)
+    lw $s2 12($sp)
+    lw $s1 8($sp)
+    lw $s0 4($sp)
+    lw $ra 0($sp)
+    addi $sp $sp 36
+    jr $ra
+
+# ---------------------------
+# initialize_blocks
+# sets memory values
+initialize_blocks_memory:
+    # prologue
+    addi $sp $sp -24
+    sw $ra 0($sp)    # save return address into stack
+    sw $s0 4($sp)
+    sw $s1 8($sp)
+    sw $s2 12($sp)
+    sw $s3 16($sp)
+    sw $s4 20($sp)
+    
+    # body
+    li $s0 4            # x = 4
+    li $s1 4            # y = 4
+    la $s2 COLOURS
+    lw $s2 0($s2)       # red
+    li $s3 1            # active = true
+    la $s4 BLOCKS       # each block is 4 words
+    
+    # todo: support multiple rows
+    addi $t0 $zero 0    # i = 0
+    addi $t1 $zero BLOCKS_COUNT    # target = 11 blocks
+    initialize_blocks_memory_loop:
+        slt $t2 $t0 $t1     # $t2 = i < target (1 or 0)
+        beq $zero $t2 intialize_blocks_memory_epilogue
+        # loop body
+        sw $s0 0($s4)
+        sw $s1 4($s4)
+        sw $s2 8($s4)
+        sw $s3 12($s4)
+        
+        addi $s4 $s4 16    # $s4 moves to next block address
+        addi $s0 $s0 5    # x = x + 5
+        addi $t0 $t0 1    # i++
+        # beq $t0 # check if i == 1
+        j initialize_blocks_memory_loop
+        
+    # epilogue
+    intialize_blocks_memory_epilogue:
+    lw $s4 20($sp)
+    lw $s3 16($sp)
+    lw $s2 12($sp)
+    lw $s1 8($sp)
+    lw $s0 4($sp)
+    lw $ra 0($sp)
+    addi $sp $sp 24
+    jr $ra
     
 # ---------------------------
 # draw_paddle
