@@ -10,7 +10,9 @@
 # - Display height in pixels:   512
 # - Base Address for Display:   0x10008000 ($gp)
 ##############################################################################
-.eqv BLOCKS_COUNT 11
+.eqv BLOCKS_COUNT 33
+.eqv BLOCKS_PER_ROW 11
+
 .data
 ##############################################################################
 # Immutable Data
@@ -46,7 +48,7 @@ PADDLE:
     .word 24    # width
     
 BLOCKS:         # each block uses 4 words (x, y, broken, colour)
-    .word 0:44  # 4 * BLOCKS_COUNT
+    .word 0:132  # 4 * BLOCKS_COUNT
 
 ##############################################################################
 # Code
@@ -145,27 +147,33 @@ draw_blocks:
 # ---------------------------
 # initialize_blocks
 # sets memory values
+# todo: refactor this code (specify meaning of each register)
 initialize_blocks_memory:
     # prologue
-    addi $sp $sp -24
+    addi $sp $sp -32
     sw $ra 0($sp)    # save return address into stack
     sw $s0 4($sp)
     sw $s1 8($sp)
     sw $s2 12($sp)
     sw $s3 16($sp)
     sw $s4 20($sp)
+    sw $s5 24($sp)
+    sw $s7 28($sp)
     
     # body
-    li $s0 4            # x = 4
-    li $s1 4            # y = 4
-    la $s2 COLOURS
-    lw $s2 0($s2)       # red
-    li $s3 1            # active = true
-    la $s4 BLOCKS       # each block is 4 words
+    li $s0 4              # x = 4
+    li $s1 4              # y = 4
+    la $s7 COLOURS
+    lw $s2 0($s7)         # red
     
+    li $s3 1              # active = true
+    la $s4 BLOCKS         # each block is 4 words
+    li $s5 BLOCKS_PER_ROW # each row has 11 blocks
+        
     # todo: support multiple rows
-    addi $t0 $zero 0    # i = 0
-    addi $t1 $zero BLOCKS_COUNT    # target = 11 blocks
+    li $t0 0    # i = 0
+    li $t1 BLOCKS_COUNT    # target = 11 blocks
+    li $t3 0    # row-index
     initialize_blocks_memory_loop:
         slt $t2 $t0 $t1     # $t2 = i < target (1 or 0)
         beq $zero $t2 intialize_blocks_memory_epilogue
@@ -175,21 +183,39 @@ initialize_blocks_memory:
         sw $s2 8($s4)
         sw $s3 12($s4)
         
-        addi $s4 $s4 16    # $s4 moves to next block address
+        addi $s4 $s4 16   # $s4 moves to next block address
         addi $s0 $s0 5    # x = x + 5
         addi $t0 $t0 1    # i++
-        # beq $t0 # check if i == 1
+        
+        # beq $t0 # check if i == 11 or 22
+        blt $t0 $s5 initialize_blocks_memory_loop
+            addi $s1 $s1 2 # y += 2
+            addi $s5 $s5 BLOCKS_PER_ROW # move next target
+            addi $t3 $t3 1 # incremement row-index
+            
+            addi $s7 $s7 4
+            lw $s2 0($s7)         # next colour
+            
+            
+            li $s0 4       # x = 4
+            # if $t3 is even, add 2 to $s0
+            andi $t4 $t3 1 # $t4 = $t3 mod 2
+            beq $t4 $zero initialize_blocks_memory_loop
+                addi $s0 $s0 2 # x = 6
+        
         j initialize_blocks_memory_loop
         
     # epilogue
     intialize_blocks_memory_epilogue:
+    lw $s6 28($sp)
+    lw $s5 24($sp)
     lw $s4 20($sp)
     lw $s3 16($sp)
     lw $s2 12($sp)
     lw $s1 8($sp)
     lw $s0 4($sp)
     lw $ra 0($sp)
-    addi $sp $sp 24
+    addi $sp $sp 32
     jr $ra
     
 # ---------------------------
