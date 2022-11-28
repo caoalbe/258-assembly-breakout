@@ -155,7 +155,12 @@ game_loop:
     
     end_check_paddle_bounce:
     
+    # check if game over
+    beq $s2 63 quit_game
+    
+    # checks if ball hits a brick
     jal check_block_break
+    
     
     
     # 2b. Update locations (paddle, ball)    
