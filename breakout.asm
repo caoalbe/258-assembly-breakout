@@ -39,7 +39,7 @@ ADDR_KBRD:
 BALL:
     .word 31       # x-pos
     .word 57       # y-pos
-    .word 1        # velocity-x
+    .word 1       # velocity-x
     .word -1       # velocity-y
     .word 0xffffff # colour
     
@@ -72,7 +72,7 @@ main:
     jal initialize_blocks_memory
     jal draw_blocks
     
-    li $s0 0    # 0: game is pause, 1: game is active
+    li $s7 0    # 0: game is pause, 1: game is active
     
     
 
@@ -92,27 +92,47 @@ game_loop:
     beq $a0, 0x71, quit_game         # Check if the key q was pressed
     beq $a0, 0x51, quit_game         # Check if the key Q was pressed
     beq $a0, 0x20, pause_unpause     # Check if the key <space> was pressed
-    
     pause_unpause:   # flips $s0 between 0 and 1
-    addi $s0 $s0 1
-    andi $s0 $s0 1
-    j keyboard_input_end
+    addi $s7 $s7 1
+    andi $s7 $s7 1
+    # j keyboard_input_end
     
     keyboard_input_end:
     
     # 2a. Check for collisions
-    # 2b. Update locations (paddle, ball)
+    la $s6 BALL
+    lw $s1 0($s6)  # x-pos
+    lw $s2 4($s6)  # y-pos
+    lw $s3 8($s6)  # x-speed
+    lw $s4 12($s6)  # y-speed
     
+    
+    # check_wall_bounce
+    ble $s1 2 check_wall_bounce_reflect
+    bge $s1 60 check_wall_bounce_reflect
+    j end_check_wall_bounce
+    check_wall_bounce_reflect:
+    # $s1 <= 2 OR $s1 >= 61
+        # $s3 = +1, then set it to -1
+        # $s3 = -1, then set it to +1
+        srl $s3 $s3 1
+        sll $s3 $s3 1
+        not $s3 $s3
+        sw $s3 8($s6)
+    
+    end_check_wall_bounce:
+    
+    # 2b. Update locations (paddle, ball)    
+    jal update_ball
     
     # 3. Draw the screen
     jal draw_paddle
     
-    jal update_ball
     jal draw_ball
     
     # 4. Sleep
-    li $v0 32 # sleep for 33ms (1/30 of a second)
-    li $a0 33 
+    li $v0 32
+    li $a0 33  # sleep for 33ms (1/30 of a second)
 
     #5. Go back to 1
     b game_loop
@@ -128,8 +148,6 @@ respond_to_AD:
     addi $sp $sp -8
     sw $ra 0($sp)
     sw $s0 4($sp)
-    
-    
     
     # body
     la $t0 PADDLE
@@ -352,6 +370,7 @@ draw_paddle:
 
 # ---------------------------
 # update_ball()
+# un-draw ball, add speed to location
 update_ball:
     # prologue
     addi $sp $sp -4
