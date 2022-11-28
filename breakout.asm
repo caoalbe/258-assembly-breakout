@@ -136,14 +136,14 @@ game_loop:
     
     # check_paddle_bounce
     la $t0 PADDLE
-    lw $t1 0($t0) # paddle x-pos
+    lw $t1 0($t0) # paddle left edge
     lw $t2 4($t0) # paddle y-pos
     addi $t2 $t2 -2
-    lw $t3 8($t0) # paddle width
+    lw $t3 8($t0) # paddle right edge
     add $t3 $t3 $t1
     blt $s2 $t2 end_check_paddle_bounce # correct height
-    # ble $s1 $t1 end_check_paddle_bounce # left boundary
-    # bgt $s1 $t3 end_check_paddle_bounce # right boundary
+    ble $s1 $t1 end_check_paddle_bounce # left boundary
+    bgt $s1 $t3 end_check_paddle_bounce # right boundary
     check_paddle_bounce:
         # $s4 = +1, then set it to -1
         # $s4 = -1, then set it it +1
