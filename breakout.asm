@@ -37,17 +37,19 @@ ADDR_KBRD:
 ##############################################################################
 
 BALL:
-    .word 31    # x-pos
-    .word 57    # y-pos
-    .word 1     # velocity-x
-    .word -1    # velocity-y
+    .word 31       # x-pos
+    .word 57       # y-pos
+    .word 1        # velocity-x
+    .word -1       # velocity-y
+    .word 0xffffff # colour
     
 PADDLE:
-    .word 20    # x-pos
-    .word 60    # y-pos
-    .word 24    # width
+    .word 20       # x-pos
+    .word 60       # y-pos
+    .word 24       # width
+    .word 0xffffff # colour
     
-BLOCKS:         # each block uses 4 words (x, y, broken, colour)
+BLOCKS:         # each block uses 4 words (x, y, colour, isActive)
     .word 0:132  # 4 * BLOCKS_COUNT
 
 ##############################################################################
@@ -70,27 +72,105 @@ main:
     jal initialize_blocks_memory
     jal draw_blocks
     
+    li $s0 0    # 0: game is pause, 1: game is active
+    
     
 
 game_loop:
     # 1a. Check if key has been pressed
+    lw $s0, ADDR_KBRD                   # $s0 = base address for keyboard
+    lw $t8, 0($s0)                      # Load first word from keyboard
+    bgt $t8, 1, keyboard_input_end      # If first word is not 1, key is not pressed
+    blt $t8, 1, keyboard_input_end
+    
     # 1b. Check which key has been pressed
+    lw $a0, 4($s0)                   # Load second word from keyboard
+    beq $a0, 0x61, respond_to_AD     # Check if the key a was pressed
+    beq $a0, 0x41, respond_to_AD     # Check if the key A was pressed
+    beq $a0, 0x64, respond_to_AD     # Check if the key d was pressed
+    beq $a0, 0x44, respond_to_AD     # Check if the key D was pressed
+    beq $a0, 0x71, quit_game         # Check if the key q was pressed
+    beq $a0, 0x51, quit_game         # Check if the key Q was pressed
+    beq $a0, 0x20, pause_unpause     # Check if the key <space> was pressed
+    
+    pause_unpause:   # flips $s0 between 0 and 1
+    addi $s0 $s0 1
+    andi $s0 $s0 1
+    j keyboard_input_end
+    
+    keyboard_input_end:
+    
     # 2a. Check for collisions
     # 2b. Update locations (paddle, ball)
+    
+    
     # 3. Draw the screen
+    jal draw_paddle
+    
+    jal update_ball
+    jal draw_ball
+    
     # 4. Sleep
+    li $v0 32 # sleep for 33ms (1/30 of a second)
+    li $a0 33 
 
     #5. Go back to 1
-    
-    
-    # todo: sleep every cycle
-    # jal draw_ball
-    # jal update_ball
-    
     b game_loop
     
+
+
+# ---------------------------
+# respond_to_AD
+# moves paddle left and right
+# $a0: character pressed
+respond_to_AD:
+    # prologue
+    addi $sp $sp -8
+    sw $ra 0($sp)
+    sw $s0 4($sp)
     
     
+    
+    # body
+    la $t0 PADDLE
+    move $s0 $a0
+    
+    # undraw-paddle
+    li $t1 0x000000
+    sw $t1 12($t0)  # sets paddle to black
+    jal draw_paddle # draw black paddle
+    li $t1 0xffffff
+    sw $t1 12($t0)  # sets paddle to white
+    
+    # move paddle left or right
+    lw $t1 0($t0)  # loads x-pos
+    beq $s0, 0x61, respond_to_A     # Check if the key a was pressed
+    beq $s0, 0x41, respond_to_A     # Check if the key A was pressed
+    # d or D must have been pressed
+    
+    respond_to_D:
+    addi $t1 $t1 1
+    
+    # bound paddle to right wall
+    ble $t1 38 respond_to_AD_epilogue
+        li $t1 38
+    j respond_to_AD_epilogue
+    
+    respond_to_A:
+    addi $t1 $t1 -1
+    # bound paddle to left wall
+    bge $t1 2 respond_to_AD_epilogue
+        li $t1 2
+    j respond_to_AD_epilogue
+    
+    # epilogue
+    respond_to_AD_epilogue:
+    sw $t1 0($t0)
+    
+    lw $s0 4($sp)
+    lw $ra 0($sp)
+    addi $sp $sp 8
+    jr $ra
     
 # ---------------------------
 # draw_blocks
@@ -118,14 +198,17 @@ draw_blocks:
         slt $t0 $s5 $s6     # $s7 = i < target (1 or 0)
         beq $zero $t0 draw_blocks_epilogue
         # loop body
+        lw $t1 12($s4)   # isActive
+        beq $t1 $zero draw_blocks_loop_end # skip draw_horizontal if block is not active
 
         # draw_horizontal(x-pos, y-pos, 3, colour)
         lw $a0 0($s4)    # x-pos
         lw $a1 4($s4)    # y-pos
         li $a2 4         # 3
-        lw $a3 8($s4) # colour
+        lw $a3 8($s4)    # colour
         jal draw_horizontal
         
+        draw_blocks_loop_end:
         addi $s5 $s5 1    # i++
         addi $s4 $s4 16   # next address
         j draw_blocks_loop
@@ -239,8 +322,8 @@ draw_paddle:
     lw $s0 0($t1)    # x-pos
     lw $s1 4($t1)    # y-pos
     lw $s2 8($t1)    # width
-    la $s3 COLOURS
-    lw $s3 16($s3)   # 0xffffff
+    # la $s3 COLOURS (unused now)
+    lw $s3 12($t1)   # colour
     
     
     # draw_horizontal(x, y, width, white)
@@ -276,6 +359,15 @@ update_ball:
     
     # body
     la $t0 BALL
+    
+    # un-draw ball
+    li $t7 0x000000
+    sw $t7 16($t0)
+    jal draw_ball
+    li $t7 0xffffff
+    sw $t7 16($t0)
+    
+    # change ball data
     lw $t2 0($t0)    # x-pos
     lw $t3 4($t0)    # y-pos
     lw $t4 8($t0)    # x-speed
@@ -287,6 +379,11 @@ update_ball:
     sw $t3 4($t0) 
     
     # todo: check collisions here
+    # hierarchy: 
+    # side-wall: flip y-speed
+    # top-wall: flip both x-speed and y-speed
+    # block: flip x-speed and set y-speed = +1
+    # paddle: depends on position
     
     # epilogue
     lw $ra 0($sp)
@@ -312,10 +409,11 @@ draw_ball:
     jal find_address
     addi $t1 $v0 0    # places address of (x-pos, y-pos) into $t1
     
-    la $t2 COLOURS
-    lw $t2 16($t2)    #0xffffff
     
-    # draw the four pixels
+    la $a0 BALL
+    lw $t2 16($a0)   # loads ball colour
+    
+    # draw the four pixels of the ball
     sw $t2 0($t1)
     sw $t2 4($t1)
     addi $t1 $t1 256
@@ -492,3 +590,11 @@ draw_board:
     lw $ra 0($sp)
     addi $sp $sp 4
     jr $ra
+
+
+# ---------------------------
+# quit_game
+# terminates game gracefully
+quit_game:
+    li $v0 10
+    syscall
