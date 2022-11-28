@@ -213,9 +213,9 @@ check_block_break:
         beq $s6 $zero check_block_break_loop_end # block is inactive
         bgt $s1 $s5 check_block_break_loop_end   # ball is too down from brick
         
-        # blt $s0 $s4 check_block_break_loop_end   # ball is too far left
-        # addi $s4 $s4 5
-        # bgt $s0 $s4 check_block_break_loop_end   # ball is too far right
+        blt $s0 $s4 check_block_break_loop_end   # ball is too far left
+        addi $s4 $s4 5
+        bgt $s0 $s4 check_block_break_loop_end   # ball is too far right
         
         # brick does break
         li $s6 0
