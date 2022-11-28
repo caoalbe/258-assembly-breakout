@@ -106,7 +106,8 @@ game_loop:
     lw $s3 8($s6)  # x-speed
     lw $s4 12($s6)  # y-speed
     
-    
+    # todo: turn these checks into other functions
+    # 
     # check_wall_bounce
     ble $s1 2 check_wall_bounce_reflect
     bge $s1 60 check_wall_bounce_reflect
@@ -154,15 +155,15 @@ game_loop:
     
     end_check_paddle_bounce:
     
+    jal check_block_break
+    
     
     # 2b. Update locations (paddle, ball)    
     jal update_ball
     
     # 3. Draw the screen
     jal draw_paddle
-    
     jal draw_ball
-    
     jal draw_blocks
     
     # 4. Sleep
@@ -174,6 +175,76 @@ game_loop:
     b game_loop
     
 
+
+# ---------------------------
+# check_block_break
+# checks collision with blocks AND mutates state of ball if necessary
+# used $s0, 1, 2, $s3, 4, 5, 6 $s7
+check_block_break:
+    # prologue
+    addi $sp $sp -36
+    sw $ra 0($sp)
+    sw $s0 4($sp)
+    sw $s1 8($sp)
+    sw $s2 12($sp)
+    sw $s3 16($sp)
+    sw $s4 20($sp)
+    sw $s5 24($sp)
+    sw $s6 28($sp)
+    sw $s7 32($sp)
+    
+    # body
+    la $t0 BALL
+    lw $s0 0($t0)  # ball x-pos
+    lw $s1 4($t0)  # ball y-pos
+    lw $s2 8($t0)  # ball x-speed
+    lw $s3 12($t0) # ball y-speed
+    
+    # iterate through each block
+    li $s7 0       # i = 0
+    la $t1 BLOCKS 
+    check_block_break_loop:
+        beq $s7 BLOCKS_COUNT check_block_break_epilogue # every brick has been checked
+        lw $s4 0($t1)   # block x-pos
+        addi $s4 $s4 -1     # x-target for ball
+        lw $s5 4($t1)   # block y-pos
+        addi $s5 $s5 1  # y-target for ball
+        lw $s6 12($t1)  # block isActive
+        beq $s6 $zero check_block_break_loop_end # block is inactive
+        bgt $s1 $s5 check_block_break_loop_end   # ball is too down from brick
+        
+        # blt $s0 $s4 check_block_break_loop_end   # ball is too far left
+        # addi $s4 $s4 5
+        # bgt $s0 $s4 check_block_break_loop_end   # ball is too far right
+        
+        # brick does break
+        li $s6 0
+        sw $s6 12($t1)   # set broken block to inactive
+        li $s6 0x000000
+        sw $s6 8($t1)    # set broken block to black
+        
+        li $s3 1
+        sw $s3 12($t0)
+        j check_block_break_epilogue
+        
+    check_block_break_loop_end:
+        addi $s7 $s7 1    
+        addi $t1 $t1 16
+        j check_block_break_loop
+    
+    # epilogue
+    check_block_break_epilogue:
+    lw $s7 32($sp)
+    lw $s6 28($sp)
+    lw $s5 24($sp)
+    lw $s4 20($sp)
+    lw $s3 16($sp)
+    lw $s2 12($sp)
+    lw $s1 8($sp)
+    lw $s0 4($sp)
+    lw $ra 0($sp)
+    addi $sp $sp 36
+    jr $ra
 
 # ---------------------------
 # respond_to_AD
@@ -253,7 +324,7 @@ draw_blocks:
         beq $zero $t0 draw_blocks_epilogue
         # loop body
         lw $t1 12($s4)   # isActive
-        beq $t1 $zero draw_blocks_loop_end # skip draw_horizontal if block is not active
+        # beq $t1 $zero draw_blocks_loop_end # skip draw_horizontal if block is not active
 
         # draw_horizontal(x-pos, y-pos, 3, colour)
         lw $a0 0($s4)    # x-pos
