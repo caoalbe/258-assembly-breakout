@@ -119,8 +119,41 @@ game_loop:
         sll $s3 $s3 1
         not $s3 $s3
         sw $s3 8($s6)
-    
     end_check_wall_bounce:
+    
+    # check_top_wall_bounce
+    ble $s2 2 check_top_wall_bounce
+    j end_check_top_wall_bounce
+    check_top_wall_bounce:
+    # $s2 <= 2
+        # $s4 = +1, then set it to -1
+        # $s4 = -1, then set it it +1
+        srl $s4 $s4 1
+        sll $s4 $s4 1
+        not $s4 $s4
+        sw $s4 12($s6)
+    end_check_top_wall_bounce:
+    
+    # check_paddle_bounce
+    la $t0 PADDLE
+    lw $t1 0($t0) # paddle x-pos
+    lw $t2 4($t0) # paddle y-pos
+    addi $t2 $t2 -2
+    lw $t3 8($t0) # paddle width
+    add $t3 $t3 $t1
+    blt $s2 $t2 end_check_paddle_bounce # correct height
+    # ble $s1 $t1 end_check_paddle_bounce # left boundary
+    # bgt $s1 $t3 end_check_paddle_bounce # right boundary
+    check_paddle_bounce:
+        # $s4 = +1, then set it to -1
+        # $s4 = -1, then set it it +1
+        srl $s4 $s4 1
+        sll $s4 $s4 1
+        not $s4 $s4
+        sw $s4 12($s6)
+    
+    end_check_paddle_bounce:
+    
     
     # 2b. Update locations (paddle, ball)    
     jal update_ball
@@ -130,9 +163,12 @@ game_loop:
     
     jal draw_ball
     
+    jal draw_blocks
+    
     # 4. Sleep
     li $v0 32
     li $a0 33  # sleep for 33ms (1/30 of a second)
+    syscall
 
     #5. Go back to 1
     b game_loop
