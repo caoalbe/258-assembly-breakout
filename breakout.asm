@@ -39,7 +39,7 @@ ADDR_KBRD:
 BALL:
     .word 31       # x-pos
     .word 57       # y-pos
-    .word 1       # velocity-x
+    .word 1        # velocity-x
     .word -1       # velocity-y
     .word 0xffffff # colour
     
@@ -91,11 +91,8 @@ game_loop:
     beq $a0, 0x44, respond_to_AD     # Check if the key D was pressed
     beq $a0, 0x71, quit_game         # Check if the key q was pressed
     beq $a0, 0x51, quit_game         # Check if the key Q was pressed
-    beq $a0, 0x20, pause_unpause     # Check if the key <space> was pressed
-    pause_unpause:   # flips $s0 between 0 and 1
-    addi $s7 $s7 1
-    andi $s7 $s7 1
-    # j keyboard_input_end
+    beq $a0, 0x70, pause_game        # Check if the key p was pressed
+    beq $a0, 0x50, pause_game        # Check if the key P was pressed
     
     keyboard_input_end:
     
@@ -722,6 +719,21 @@ draw_board:
     addi $sp $sp 4
     jr $ra
 
+# ---------------------------
+# pause_game
+# pauses game
+pause_game:
+    lw $t0, ADDR_KBRD                    # $t0 = base address for keyboard
+    lw $t8, 0($t0)                       # Load first word from keyboard
+    beq $t8, 1, unpause_input            # If first word 1, key is pressed
+    j pause_game
+    unpause_input:
+    lw $a0, 4($t0)                       # Load second word from keyboard
+    beq $a0, 0x70, keyboard_input_end    # Unpause game if p pressed
+    beq $a0, 0x50, keyboard_input_end    # Unpause game if P pressed
+    beq $a0, 0x71, quit_game             # Quit game if q pressed
+    beq $a0, 0x51, quit_game             # Quit game if Q pressed
+    j pause_game
 
 # ---------------------------
 # quit_game
