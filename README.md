@@ -20,8 +20,9 @@ initialize_blocks_memory: () -> void
 draw_paddle: () -> void
 update_ball: () -> void
 draw_ball: () -> void
-draw_vertical: (x, y, height, colour) -> void
-draw_horizontal: (x, y, width, colour) -> void
+todo: dont draw_vertical or draw_horizontal outside of canvas
+draw_vertical: (x, y, height, colour) -> void  
+draw_horizontal: (x, y, width, colour) -> void  
 find_address: (x, y) -> address
 draw_board: draws walls
 quit_game: terminates game gracefully
@@ -37,4 +38,4 @@ features to implement (3 easy + 2 hard)
 easy 7: unbreakable bricks
 hard 1: track players score
 easy 8: second paddle
-hard 3: multiple hit bricks
+hard 3: multiple hit bricks (colour for each health)

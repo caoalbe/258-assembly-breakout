@@ -12,6 +12,10 @@
 ##############################################################################
 .eqv BLOCKS_COUNT 33
 .eqv BLOCKS_PER_ROW 11
+.eqv LEFT_WALL_X 0
+.eqv RIGHT_WALL_X 62
+.eqv TOP_WALL_Y 0
+.eqv BLOCK_DATA_SIZE 24
 
 .data
 ##############################################################################
@@ -49,7 +53,7 @@ PADDLE:
     .word 24       # width
     .word 0xffffff # colour
     
-BLOCKS:         # each block uses 4 words (x, y, colour, isActive)
+BLOCKS:         # each block uses 4 words (x, y, colour, isActive, health, isBreakable)
     .word 0:132  # 4 * BLOCKS_COUNT
 
 ##############################################################################
@@ -71,8 +75,6 @@ main:
     
     jal initialize_blocks_memory
     jal draw_blocks
-    
-    li $s7 0    # 0: game is pause, 1: game is active
     
     
 
@@ -166,7 +168,7 @@ game_loop:
     # 3. Draw the screen
     jal draw_paddle
     jal draw_ball
-    jal draw_blocks
+    # jal draw_blocks
     
     # 4. Sleep
     li $v0 32
@@ -224,14 +226,16 @@ check_block_break:
         sw $s6 12($t1)   # set broken block to inactive
         li $s6 0x000000
         sw $s6 8($t1)    # set broken block to black
+        jal draw_blocks
         
         li $s3 1
+        la $t0 BALL
         sw $s3 12($t0)
         j check_block_break_epilogue
         
     check_block_break_loop_end:
         addi $s7 $s7 1    
-        addi $t1 $t1 16
+        addi $t1 $t1 BLOCK_DATA_SIZE
         j check_block_break_loop
     
     # epilogue
@@ -316,9 +320,8 @@ draw_blocks:
     sw $s7 32($sp)
     
     # body
-    la $s4 BLOCKS       # each block is 4 words
+    la $s4 BLOCKS       # each block is 6 words
     
-    # todo: support multiple rows
     li $s5 0     # i = 0
     li $s6 BLOCKS_COUNT    # target = BLOCKS_COUNT
     draw_blocks_loop:
@@ -337,7 +340,7 @@ draw_blocks:
         
         draw_blocks_loop_end:
         addi $s5 $s5 1    # i++
-        addi $s4 $s4 16   # next address
+        addi $s4 $s4 BLOCK_DATA_SIZE   # next address
         j draw_blocks_loop
         
     # epilogue
@@ -358,66 +361,88 @@ draw_blocks:
 # initialize_blocks
 # sets memory values
 # todo: refactor this code (specify meaning of each register)
+# s0: x-pos
+# s1: y-pos
+# s2: colour value
+# s3: isActive
+# s4: health
+# s5: isBreakable
+# s6: 
+# s7:
+# t0: i
+# t1: BLOCKS_COUNT         = 33
+# t2: BLOCK memory address
+# t3: BLOCKS_PER_ROW       = 11
+# t4: dummy immediate
 initialize_blocks_memory:
     # prologue
-    addi $sp $sp -32
-    sw $ra 0($sp)    # save return address into stack
+    addi $sp $sp -28
+    sw $ra 0($sp)
     sw $s0 4($sp)
     sw $s1 8($sp)
     sw $s2 12($sp)
     sw $s3 16($sp)
     sw $s4 20($sp)
     sw $s5 24($sp)
-    sw $s7 28($sp)
     
     # body
-    li $s0 4              # x = 4
-    li $s1 4              # y = 4
-    la $s7 COLOURS
-    lw $s2 0($s7)         # red
-    
-    li $s3 1              # active = true
-    la $s4 BLOCKS         # each block is 4 words
-    li $s5 BLOCKS_PER_ROW # each row has 11 blocks
-        
-    # todo: support multiple rows
-    li $t0 0    # i = 0
-    li $t1 BLOCKS_COUNT    # target = 11 blocks
-    li $t3 0    # row-index
+    li $s0 4                # x = 4
+    li $s1 4                # y = 4
+    la $s2 COLOURS
+    lw $s2 0($s2)           # red
+    li $s3 1                # active = true
+    li $s4 1                # health = 1
+    li $s5 1                # isBreakable = 1
+              
+    li $t0 0                # i = 0
+    li $t5 0                # rowIndex = 0
+    li $t1 BLOCKS_COUNT     # target = 33 blocks
+    la $t2 BLOCKS           # BLOCKS[i]
+    li $t3 BLOCKS_PER_ROW   # each row has 11 blocks
     initialize_blocks_memory_loop:
-        slt $t2 $t0 $t1     # $t2 = i < target (1 or 0)
-        beq $zero $t2 intialize_blocks_memory_epilogue
+        slt $t4 $t0 $t1     # $t4 = i < target (1 or 0)
+        beq $t5 3 intialize_blocks_memory_epilogue
+        
         # loop body
-        sw $s0 0($s4)
-        sw $s1 4($s4)
-        sw $s2 8($s4)
-        sw $s3 12($s4)
+        sw $s0 0($t2)       # x-pos
+        sw $s1 4($t2)       # y-pos
+        sw $s2 8($t2)       # colour
+        sw $s3 12($t2)      # isActive
+        sw $s4 16($t2)      # health
+        sw $s5 20($t2)      # isBreakable
+                
+        addi $s0 $s0 5      # x += 5
+        addi $t0 $t0 1      # i++
+        addi $t2 $t2 BLOCK_DATA_SIZE     # $t2 moves to next block address
         
-        addi $s4 $s4 16   # $s4 moves to next block address
-        addi $s0 $s0 5    # x = x + 5
-        addi $t0 $t0 1    # i++
-        
-        # beq $t0 # check if i == 11 or 22
-        blt $t0 $s5 initialize_blocks_memory_loop
-            addi $s1 $s1 2 # y += 2
-            addi $s5 $s5 BLOCKS_PER_ROW # move next target
-            addi $t3 $t3 1 # incremement row-index
-            
-            addi $s7 $s7 4
-            lw $s2 0($s7)         # next colour
-            
+        # check next row of bricks
+        # div $t0 $t3    # div is too slow
+        # mfhi $t4     # t4 = i % 11
+        # blt $zero $t4 initialize_blocks_memory_loop  # go to loop top if: 0 < i % 11
+        blt $t0 $t3 initialize_blocks_memory_loop # go to loop top if: i < 11
+            # mflo $t4 # t4 = i / 11
+            li $t0 0       # i = 0
+            addi $t5 $t5 1 # rowIndex++
             
             li $s0 4       # x = 4
-            # if $t3 is even, add 2 to $s0
-            andi $t4 $t3 1 # $t4 = $t3 mod 2
+            addi $s1 $s1 2 # y += 2
+            
+            la $s2 COLOURS   
+            add $s2 $s2 $t5
+            add $s2 $s2 $t5
+            add $s2 $s2 $t5
+            add $s2 $s2 $t5
+            lw $s2 0($s2)    # s2 = next colour
+            
+            # go to loop top if: lo is odd
+            # go to loop top if: rowIndex is odd
+            andi $t4 $t5 1 # $t4 = $t4 mod 2
             beq $t4 $zero initialize_blocks_memory_loop
-                addi $s0 $s0 2 # x = 6
-        
+                li $s0 6 # x = 6
         j initialize_blocks_memory_loop
         
     # epilogue
     intialize_blocks_memory_epilogue:
-    lw $s6 28($sp)
     lw $s5 24($sp)
     lw $s4 20($sp)
     lw $s3 16($sp)
@@ -425,7 +450,7 @@ initialize_blocks_memory:
     lw $s1 8($sp)
     lw $s0 4($sp)
     lw $ra 0($sp)
-    addi $sp $sp 32
+    addi $sp $sp 28
     jr $ra
     
 # ---------------------------
@@ -668,14 +693,15 @@ draw_board:
     # left wall
     # draw_vertical(0, 0, 64, gray)
     # draw_vertical(1, 0, 64, gray)
-    li $a0 0
-    li $a1 0
+    li $a0 LEFT_WALL_X
+    li $a1 TOP_WALL_Y
     li $a2 64
     la $a3 COLOURS
     lw $a3 20($a3)
     jal draw_vertical
-    li $a0 1
-    li $a1 0
+    li $a0 LEFT_WALL_X
+    addi $a0 $a0 1
+    li $a1 TOP_WALL_Y
     li $a2 64
     la $a3 COLOURS
     lw $a3 20($a3)
@@ -684,13 +710,14 @@ draw_board:
     # right wall
     # draw_vertical(62, 0, 64, gray)
     # draw_vertical(63, 0, 64, gray)
-    li $a0 62
+    li $a0 RIGHT_WALL_X
     li $a1 0
     li $a2 64
     la $a3 COLOURS
     lw $a3 20($a3)
     jal draw_vertical
-    li $a0 63
+    li $a0 RIGHT_WALL_X
+    addi $a0 $a0 1
     li $a1 0
     li $a2 64
     la $a3 COLOURS
@@ -701,14 +728,15 @@ draw_board:
     # top wall
     # draw_horizontal(0, 0, 64, gray)
     # draw_horizontal(0, 1, 64, gray)
-    li $a0 0
-    li $a1 0
+    li $a0 LEFT_WALL_X
+    li $a1 TOP_WALL_Y
     li $a2 64
     la $a3 COLOURS
     lw $a3 20($a3)
     jal draw_horizontal
-    li $a0 0
-    li $a1 1
+    li $a0 LEFT_WALL_X
+    li $a1 TOP_WALL_Y
+    addi $a1 $a1 1
     li $a2 64
     la $a3 COLOURS
     lw $a3 20($a3)
