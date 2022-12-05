@@ -53,8 +53,8 @@ PADDLE:
     .word 24       # width
     .word 0xffffff # colour
     
-BLOCKS:         # each block uses 4 words (x, y, colour, isActive, health, isBreakable)
-    .word 0:132  # 4 * BLOCKS_COUNT
+BLOCKS:         # each block uses 6 words (x, y, colour, isActive, health, isBreakable)
+    .word 0:132  # 6 * BLOCKS_COUNT
 
 ##############################################################################
 # Code
@@ -74,6 +74,20 @@ main:
     jal draw_paddle
     
     jal initialize_blocks_memory
+    
+    # manually set brick at index 32 to unbreakable
+    li $t0 0xdcddde
+    la $t1 BLOCKS
+    addi $t1 $t1 720 
+    sw $zero 20($t1)
+    sw $t0 8($t1)
+    
+    # manually set brick at index 29 to 2 health
+    li $t0 2
+    la $t1 BLOCKS
+    addi $t1 $t1 696
+    sw $t0 16($t1)
+    
     jal draw_blocks
     
     
@@ -209,11 +223,11 @@ check_block_break:
     la $t1 BLOCKS 
     check_block_break_loop:
         beq $s7 BLOCKS_COUNT check_block_break_epilogue # every brick has been checked
-        lw $s4 0($t1)   # block x-pos
-        addi $s4 $s4 -1     # x-target for ball
-        lw $s5 4($t1)   # block y-pos
-        addi $s5 $s5 1  # y-target for ball
-        lw $s6 12($t1)  # block isActive
+        lw $s4 0($t1)     # block x-pos
+        addi $s4 $s4 -1   # x-target for ball
+        lw $s5 4($t1)     # block y-pos
+        addi $s5 $s5 1    # y-target for ball
+        lw $s6 12($t1)    # block isActive
         beq $s6 $zero check_block_break_loop_end # block is inactive
         bgt $s1 $s5 check_block_break_loop_end   # ball is too down from brick
         
@@ -221,13 +235,28 @@ check_block_break:
         addi $s4 $s4 5
         bgt $s0 $s4 check_block_break_loop_end   # ball is too far right
         
-        # brick does break
+        # ball collides with brick
+        lw $t3 20($t1)  
+        beq $zero $t3 check_block_break_bounce # branch if block is not breakble
+        
+        # does brick have health
+        li $t3 0xffff00 
+        sw $t3 8($t1)  # set brick colour to yellow
+        lw $t3 16($t1)
+        addi $t3 $t3 -1
+        sw $t3 16($t1)  # reduce health of brick by 1
+        bgt $t3 $zero check_block_break_bounce # branch if block still has health 
+        
+        
+        # brick is broken
         li $s6 0
         sw $s6 12($t1)   # set broken block to inactive
         li $s6 0x000000
         sw $s6 8($t1)    # set broken block to black
-        jal draw_blocks
         
+        check_block_break_bounce:
+        jal draw_blocks
+        # ball bounces off brick
         li $s3 1
         la $t0 BALL
         sw $s3 12($t0)
@@ -696,6 +725,7 @@ draw_board:
     li $a0 LEFT_WALL_X
     li $a1 TOP_WALL_Y
     li $a2 64
+    subi $a2 $a2 TOP_WALL_Y 
     la $a3 COLOURS
     lw $a3 20($a3)
     jal draw_vertical
@@ -703,6 +733,7 @@ draw_board:
     addi $a0 $a0 1
     li $a1 TOP_WALL_Y
     li $a2 64
+    subi $a2 $a2 TOP_WALL_Y
     la $a3 COLOURS
     lw $a3 20($a3)
     jal draw_vertical
@@ -713,6 +744,7 @@ draw_board:
     li $a0 RIGHT_WALL_X
     li $a1 0
     li $a2 64
+    subi $a2 $a2 TOP_WALL_Y
     la $a3 COLOURS
     lw $a3 20($a3)
     jal draw_vertical
@@ -720,6 +752,7 @@ draw_board:
     addi $a0 $a0 1
     li $a1 0
     li $a2 64
+    subi $a2 $a2 TOP_WALL_Y
     la $a3 COLOURS
     lw $a3 20($a3)
     jal draw_vertical
@@ -730,14 +763,16 @@ draw_board:
     # draw_horizontal(0, 1, 64, gray)
     li $a0 LEFT_WALL_X
     li $a1 TOP_WALL_Y
-    li $a2 64
+    li $a2 RIGHT_WALL_X
+    subi $a2 $a2 LEFT_WALL_X
     la $a3 COLOURS
     lw $a3 20($a3)
     jal draw_horizontal
     li $a0 LEFT_WALL_X
     li $a1 TOP_WALL_Y
     addi $a1 $a1 1
-    li $a2 64
+    li $a2 RIGHT_WALL_X
+    subi $a2 $a2 LEFT_WALL_X
     la $a3 COLOURS
     lw $a3 20($a3)
     jal draw_horizontal
