@@ -45,19 +45,19 @@ SCORE:
     
 BALL:
     .word 31       # x-pos
-    .word 57       # y-pos
+    .word 50       # y-pos
     .word 1        # velocity-x
     .word -1       # velocity-y
     .word 0xffffff # colour
     
 PADDLE:
-    .word 20       # x-pos
+    .word 5       # x-pos
     .word 60       # y-pos
     .word 24       # width
     .word 0xffffff # colour
     
 PADDLE2:
-    .word 5       # x-pos
+    .word 35       # x-pos
     .word 55       # y-pos
     .word 24       # width
     .word 0xffffff # colour
@@ -89,17 +89,23 @@ main:
     
     jal initialize_blocks_memory
     
-    # manually set brick at index 32 to unbreakable
+    # manually set brick at index 31 to unbreakable
     li $t0 0xdcddde
     la $t1 BLOCKS
     addi $t1 $t1 720 
     sw $zero 20($t1)
     sw $t0 8($t1)
     
-    # manually set brick at index 29 to 2 health
+    # manually set brick at index 32 to 2 health
     li $t0 2
     la $t1 BLOCKS
-    addi $t1 $t1 696
+    addi $t1 $t1 744
+    sw $t0 16($t1)
+    
+    # manually set brick at index 33 to 2 health
+    li $t0 2
+    la $t1 BLOCKS
+    addi $t1 $t1 768
     sw $t0 16($t1)
     
     jal draw_blocks
