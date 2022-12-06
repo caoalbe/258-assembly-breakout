@@ -14,7 +14,7 @@
 .eqv BLOCKS_PER_ROW 11
 .eqv LEFT_WALL_X 0
 .eqv RIGHT_WALL_X 62
-.eqv TOP_WALL_Y 0
+.eqv TOP_WALL_Y 7
 .eqv BLOCK_DATA_SIZE 24
 
 .data
@@ -197,7 +197,6 @@ game_loop:
 # ---------------------------
 # check_block_break
 # checks collision with blocks AND mutates state of ball if necessary
-# used $s0, 1, 2, $s3, 4, 5, 6 $s7
 check_block_break:
     # prologue
     addi $sp $sp -36
@@ -232,35 +231,33 @@ check_block_break:
         bgt $s1 $s5 check_block_break_loop_end   # ball is too down from brick
         
         blt $s0 $s4 check_block_break_loop_end   # ball is too far left
-        addi $s4 $s4 5
+        addi $s4 $s4 4
         bgt $s0 $s4 check_block_break_loop_end   # ball is too far right
         
         # ball collides with brick
         lw $t3 20($t1)  
-        beq $zero $t3 check_block_break_bounce # branch if block is not breakble
+        beq $zero $t3 check_block_break_bounce_paddle # branch if block is not breakble
         
         # does brick have health
         li $t3 0xffff00 
-        sw $t3 8($t1)  # set brick colour to yellow
+        sw $t3 8($t1)    # set brick colour to yellow
         lw $t3 16($t1)
         addi $t3 $t3 -1
         sw $t3 16($t1)  # reduce health of brick by 1
-        bgt $t3 $zero check_block_break_bounce # branch if block still has health 
+        bgt $t3 $zero check_block_break_bounce_paddle # branch if block still has health 
         
         
         # brick is broken
-        li $s6 0
-        sw $s6 12($t1)   # set broken block to inactive
-        li $s6 0x000000
-        sw $s6 8($t1)    # set broken block to black
+        sw $zero 12($t1)   # set broken block to inactive
+        sw $zero 8($t1)    # set broken block to black
         
-        check_block_break_bounce:
+        check_block_break_bounce_paddle:
         jal draw_blocks
         # ball bounces off brick
         li $s3 1
         la $t0 BALL
         sw $s3 12($t0)
-        j check_block_break_epilogue
+        # j check_block_break_epilogue
         
     check_block_break_loop_end:
         addi $s7 $s7 1    
@@ -416,7 +413,8 @@ initialize_blocks_memory:
     
     # body
     li $s0 4                # x = 4
-    li $s1 4                # y = 4
+    li $s1 TOP_WALL_Y       # y = 4
+    addi $s1 $s1 4
     la $s2 COLOURS
     lw $s2 0($s2)           # red
     li $s3 1                # active = true
@@ -742,7 +740,7 @@ draw_board:
     # draw_vertical(62, 0, 64, gray)
     # draw_vertical(63, 0, 64, gray)
     li $a0 RIGHT_WALL_X
-    li $a1 0
+    li $a1 TOP_WALL_Y
     li $a2 64
     subi $a2 $a2 TOP_WALL_Y
     la $a3 COLOURS
@@ -750,7 +748,7 @@ draw_board:
     jal draw_vertical
     li $a0 RIGHT_WALL_X
     addi $a0 $a0 1
-    li $a1 0
+    li $a1 TOP_WALL_Y
     li $a2 64
     subi $a2 $a2 TOP_WALL_Y
     la $a3 COLOURS
