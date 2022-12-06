@@ -28,7 +28,7 @@ draw_board: draws walls
 quit_game: terminates game gracefully
 
 todo:
-fix ball squeezing through paddle bug
+~~fix ball squeezing through paddle bug~~
 fix brick collision from side and from top
 draw_paddle: () -> void
 update_ball: () -> void

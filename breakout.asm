@@ -51,7 +51,7 @@ BALL:
     .word 0xffffff # colour
     
 PADDLE:
-    .word 5       # x-pos
+    .word 5        # x-pos
     .word 60       # y-pos
     .word 24       # width
     .word 0xffffff # colour
@@ -88,6 +88,29 @@ main:
     jal draw_paddle
     
     jal initialize_blocks_memory
+    
+    # testing sequence
+    # bot -> top -> top
+    # manually set brick at index 28 to unbreakable
+    li $t0 0xdcddde
+    la $t1 BLOCKS
+    addi $t1 $t1 648
+    sw $zero 20($t1)
+    sw $t0 8($t1)
+    
+    # manually set brick at index 29 to unbreakable
+    li $t0 0xdcddde
+    la $t1 BLOCKS
+    addi $t1 $t1 672
+    sw $zero 20($t1)
+    sw $t0 8($t1)
+    
+    # manually set brick at index 30 to unbreakable
+    li $t0 0xdcddde
+    la $t1 BLOCKS
+    addi $t1 $t1 696 
+    sw $zero 20($t1)
+    sw $t0 8($t1)
     
     # manually set brick at index 31 to unbreakable
     li $t0 0xdcddde
