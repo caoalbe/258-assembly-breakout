@@ -38,6 +38,6 @@ should depend on memory address
 features to implement (3 easy + 2 hard)
 ~~easy 5: pause game~~
 ~~ easy 7: unbreakable bricks~~
-hard 1: track players score
-easy 8: second paddle
+~~hard 1: track players score~~
+~~easy 8: second paddle~~
 ~~hard 3: multiple hit bricks (colour for each health)~~

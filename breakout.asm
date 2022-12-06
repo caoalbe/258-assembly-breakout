@@ -56,6 +56,12 @@ PADDLE:
     .word 24       # width
     .word 0xffffff # colour
     
+PADDLE2:
+    .word 5       # x-pos
+    .word 55       # y-pos
+    .word 24       # width
+    .word 0xffffff # colour
+    
 BLOCKS:            # each block uses 6 words (x, y, colour, isActive, health, isBreakable)
     .word 0:132    # 6 * BLOCKS_COUNT
     
@@ -76,6 +82,9 @@ main:
     
     jal draw_ball
     
+    la $a1 PADDLE
+    jal draw_paddle
+    la $a1 PADDLE2
     jal draw_paddle
     
     jal initialize_blocks_memory
@@ -106,10 +115,17 @@ game_loop:
     
     # 1b. Check which key has been pressed
     lw $a0, 4($s0)                   # Load second word from keyboard
+    la $a1 PADDLE
     beq $a0, 0x61, respond_to_AD     # Check if the key a was pressed
     beq $a0, 0x41, respond_to_AD     # Check if the key A was pressed
     beq $a0, 0x64, respond_to_AD     # Check if the key d was pressed
     beq $a0, 0x44, respond_to_AD     # Check if the key D was pressed
+    la $a1 PADDLE2
+    beq $a0, 0x6A, respond_to_AD     # Check if the key j was pressed
+    beq $a0, 0x4A, respond_to_AD     # Check if the key J was pressed
+    beq $a0, 0x6C, respond_to_AD     # Check if the key l was pressed
+    beq $a0, 0x4C, respond_to_AD     # Check if the key L was pressed
+    
     beq $a0, 0x71, quit_game         # Check if the key q was pressed
     beq $a0, 0x51, quit_game         # Check if the key Q was pressed
     beq $a0, 0x70, pause_game        # Check if the key p was pressed
@@ -153,7 +169,7 @@ game_loop:
         sw $s4 12($s6)
     end_check_top_wall_bounce:
     
-    # check_paddle_bounce
+    # check_paddle_bounce #  <--------- FACTOR THIS OUT
     la $t0 PADDLE
     lw $t1 0($t0) # paddle left edge
     lw $t2 4($t0) # paddle y-pos
@@ -173,6 +189,26 @@ game_loop:
     
     end_check_paddle_bounce:
     
+    # check_paddle_bounce2
+    la $t0 PADDLE2
+    lw $t1 0($t0) # paddle left edge
+    lw $t2 4($t0) # paddle y-pos
+    addi $t2 $t2 -2
+    lw $t3 8($t0) # paddle right edge
+    add $t3 $t3 $t1
+    blt $s2 $t2 end_check_paddle_bounce2 # correct height
+    ble $s1 $t1 end_check_paddle_bounce2 # left boundary
+    bgt $s1 $t3 end_check_paddle_bounce2 # right boundary
+    check_paddle_bounce2:
+        # $s4 = +1, then set it to -1
+        # $s4 = -1, then set it it +1
+        srl $s4 $s4 1
+        sll $s4 $s4 1
+        not $s4 $s4
+        sw $s4 12($s6)
+    
+    end_check_paddle_bounce2:
+    
     # check if game over
     beq $s2 63 quit_game
     
@@ -185,6 +221,9 @@ game_loop:
     jal update_ball
     
     # 3. Draw the screen
+    la $a1 PADDLE
+    jal draw_paddle
+    la $a1 PADDLE2
     jal draw_paddle
     jal draw_ball
     # jal draw_blocks
@@ -451,6 +490,7 @@ check_block_break:
 # respond_to_AD
 # moves paddle left and right
 # $a0: character pressed
+# $a1: address of paddle
 respond_to_AD:
     # prologue
     addi $sp $sp -8
@@ -458,12 +498,13 @@ respond_to_AD:
     sw $s0 4($sp)
     
     # body
-    la $t0 PADDLE
+    move $t0 $a1
     move $s0 $a0
     
     # undraw-paddle
     li $t1 0x000000
     sw $t1 12($t0)  # sets paddle to black
+    # move $a1 $a1
     jal draw_paddle # draw black paddle
     li $t1 0xffffff
     sw $t1 12($t0)  # sets paddle to white
@@ -472,7 +513,9 @@ respond_to_AD:
     lw $t1 0($t0)  # loads x-pos
     beq $s0, 0x61, respond_to_A     # Check if the key a was pressed
     beq $s0, 0x41, respond_to_A     # Check if the key A was pressed
-    # d or D must have been pressed
+    beq $s0, 0x6A, respond_to_A     # Check if the key j was pressed
+    beq $s0, 0x4A, respond_to_A     # Check if the key J was pressed
+    # right arrow must have been pressed
     
     respond_to_D:
     addi $t1 $t1 1
@@ -651,6 +694,7 @@ initialize_blocks_memory:
     
 # ---------------------------
 # draw_paddle
+# $a1: address of paddle
 # $s0: x-pos of left edge
 # $s1: y-pos of left edge <-- is this constant??
 # $s2: width of paddle
@@ -666,7 +710,7 @@ draw_paddle:
     sw $s3 16($sp)
     
     # body
-    la $t1 PADDLE
+    move $t1 $a1 
     lw $s0 0($t1)    # x-pos
     lw $s1 4($t1)    # y-pos
     lw $s2 8($t1)    # width
