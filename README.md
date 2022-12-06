@@ -28,6 +28,8 @@ draw_board: draws walls
 quit_game: terminates game gracefully
 
 todo:
+fix ball squeezing through paddle bug
+fix brick collision from side and from top
 draw_paddle: () -> void
 update_ball: () -> void
 draw_ball: () -> void
@@ -35,7 +37,7 @@ should depend on memory address
 
 features to implement (3 easy + 2 hard)
 ~~easy 5: pause game~~
-~~  easy 7: unbreakable bricks~~
+~~ easy 7: unbreakable bricks~~
 hard 1: track players score
 easy 8: second paddle
 ~~hard 3: multiple hit bricks (colour for each health)~~

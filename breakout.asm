@@ -40,6 +40,9 @@ ADDR_KBRD:
 # Mutable Data
 ##############################################################################
 
+SCORE:
+    .word 0        # bricks broken
+    
 BALL:
     .word 31       # x-pos
     .word 57       # y-pos
@@ -53,8 +56,10 @@ PADDLE:
     .word 24       # width
     .word 0xffffff # colour
     
-BLOCKS:         # each block uses 6 words (x, y, colour, isActive, health, isBreakable)
-    .word 0:132  # 6 * BLOCKS_COUNT
+BLOCKS:            # each block uses 6 words (x, y, colour, isActive, health, isBreakable)
+    .word 0:132    # 6 * BLOCKS_COUNT
+    
+
 
 ##############################################################################
 # Code
@@ -184,6 +189,8 @@ game_loop:
     jal draw_ball
     # jal draw_blocks
     
+    jal draw_score
+    
     # 4. Sleep
     li $v0 32
     li $a0 33  # sleep for 33ms (1/30 of a second)
@@ -192,6 +199,161 @@ game_loop:
     #5. Go back to 1
     b game_loop
     
+
+
+
+
+
+# ---------------------------
+# draw_digit
+# a0: x-position
+# a1: y-position
+# a2: digit to draw
+draw_digit:
+    # prologue
+    addi $sp $sp -16
+    sw $ra 0($sp)
+    sw $s0 4($sp)
+    sw $s1 8($sp)
+    sw $s2 12($sp)
+    
+    # save input arguments
+    move $s0 $a0
+    move $s1 $a1
+    move $s2 $a2
+    
+    # draw top segment
+    draw_digit_top_segment:
+    beq $s2 1 draw_digit_top_right_segment
+    beq $s2 4 draw_digit_top_right_segment
+    beq $s2 6 draw_digit_top_right_segment
+    move $a0 $s0
+    move $a1 $s1
+    li $a2 3
+    li $a3 0xffffff 
+    jal draw_horizontal
+    
+    # draw top-right segment
+    draw_digit_top_right_segment:
+    beq $s2 5 draw_digit_bottom_right_segment
+    beq $s2 6 draw_digit_bottom_right_segment
+    move $a0 $s0
+    addi $a0 $a0 2
+    move $a1 $s1
+    li $a2 3
+    li $a3 0xffffff 
+    jal draw_vertical
+    
+    # draw bottom-right segment
+    draw_digit_bottom_right_segment:
+    beq $s2 2 draw_digit_bottom_segment
+    move $a0 $s0
+    addi $a0 $a0 2
+    move $a1 $s1
+    addi $a1 $a1 2
+    li $a2 3
+    li $a3 0xffffff 
+    jal draw_vertical
+    
+    # draw bottom segment
+    draw_digit_bottom_segment:
+    beq $s2 1 draw_digit_bottom_left_segment
+    beq $s2 4 draw_digit_bottom_left_segment
+    beq $s2 7 draw_digit_bottom_left_segment
+    move $a0 $s0
+    move $a1 $s1
+    addi $a1 $a1 4
+    li $a2 3
+    li $a3 0xffffff 
+    jal draw_horizontal
+    
+    # draw bottom-left segment
+    draw_digit_bottom_left_segment:
+    beq $s2 1 draw_digit_top_left_segment
+    beq $s2 3 draw_digit_top_left_segment
+    beq $s2 4 draw_digit_top_left_segment
+    beq $s2 5 draw_digit_top_left_segment
+    beq $s2 7 draw_digit_top_left_segment
+    beq $s2 9 draw_digit_top_left_segment
+    move $a0 $s0
+    move $a1 $s1
+    addi $a1 $a1 2
+    li $a2 3
+    li $a3 0xffffff 
+    jal draw_vertical
+    
+    # draw top-left segment
+    draw_digit_top_left_segment:
+    beq $s2 1 draw_digit_middle_segment
+    beq $s2 2 draw_digit_middle_segment
+    beq $s2 3 draw_digit_middle_segment
+    beq $s2 7 draw_digit_middle_segment
+    move $a0 $s0
+    move $a1 $s1
+    li $a2 3
+    li $a3 0xffffff 
+    jal draw_vertical
+    
+     # draw middle segment
+    draw_digit_middle_segment:
+    beq $s2 0 draw_digit_epilogue
+    beq $s2 1 draw_digit_epilogue
+    beq $s2 7 draw_digit_epilogue
+    move $a0 $s0
+    move $a1 $s1
+    addi $a1 $a1 2
+    li $a2 3
+    li $a3 0xffffff 
+    jal draw_horizontal
+    
+    # epilogue
+    draw_digit_epilogue:
+    lw $s2 12($sp)
+    lw $s1 8($sp)
+    lw $s0 4($sp)
+    lw $ra 0($sp)
+    addi $sp $sp 16
+    jr $ra
+
+# ---------------------------
+# draw_score
+draw_score:
+    # prologue
+    addi $sp $sp -12
+    sw $ra 0($sp)
+    sw $s0 4($sp)
+    sw $s1 8($sp)
+    
+    # body
+    # store each digit
+    la $t0 SCORE
+    lw $t0 0($t0)
+    li $t1 10
+    div $t0 $t1
+    mfhi $s0    # ones digit
+    mflo $s1    # tens digit
+    
+    # draw digits
+    li $a0 2
+    li $a1 1
+    move $a2 $s1
+    jal draw_digit
+    
+    li $a0 6
+    li $a1 1
+    move $a2 $s0
+    jal draw_digit
+    
+    
+    # epilogue
+    draw_points_epilogue:
+    lw $s1 8($sp)
+    lw $s0 4($sp)
+    lw $ra 0($sp)
+    addi $sp $sp 12
+    jr $ra
+
+
 
 
 # ---------------------------
@@ -250,6 +412,13 @@ check_block_break:
         # brick is broken
         sw $zero 12($t1)   # set broken block to inactive
         sw $zero 8($t1)    # set broken block to black
+        la $t7 SCORE
+        lw $t6 0($t7)
+        addi $t6 $t6 1
+        sw $t6 0($t7)       # increment score
+        
+        jal undraw_score
+        jal draw_score
         
         check_block_break_bounce_paddle:
         jal draw_blocks
@@ -773,6 +942,46 @@ draw_board:
     subi $a2 $a2 LEFT_WALL_X
     la $a3 COLOURS
     lw $a3 20($a3)
+    jal draw_horizontal
+    
+    # epilogue
+    lw $ra 0($sp)
+    addi $sp $sp 4
+    jr $ra
+    
+# ---------------------------
+# undraw_score
+# erases score on screen
+undraw_score:
+    # prologue
+    addi $sp $sp -4
+    sw $ra 0($sp)
+    
+    # body
+    li $a0 2
+    li $a1 1
+    li $a2 7
+    li $a3 0x000000
+    jal draw_horizontal
+    li $a0 2
+    li $a1 2
+    li $a2 7
+    li $a3 0x000000
+    jal draw_horizontal
+    li $a0 2
+    li $a1 3
+    li $a2 7
+    li $a3 0x000000
+    jal draw_horizontal
+    li $a0 2
+    li $a1 4
+    li $a2 7
+    li $a3 0x000000
+    jal draw_horizontal
+    li $a0 2
+    li $a1 5
+    li $a2 7
+    li $a3 0x000000
     jal draw_horizontal
     
     # epilogue
