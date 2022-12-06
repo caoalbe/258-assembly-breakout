@@ -182,9 +182,9 @@ game_loop:
     addi $t2 $t2 -2
     lw $t3 8($t0) # paddle right edge
     add $t3 $t3 $t1
-    blt $s2 $t2 end_check_paddle_bounce # correct height
-    ble $s1 $t1 end_check_paddle_bounce # left boundary
-    bgt $s1 $t3 end_check_paddle_bounce # right boundary
+    bne $s2 $t2 end_check_paddle_bounce # ball is incorrect height
+    ble $s1 $t1 end_check_paddle_bounce # ball is too left
+    bgt $s1 $t3 end_check_paddle_bounce # ball is too right
     check_paddle_bounce:
         # $s4 = +1, then set it to -1
         # $s4 = -1, then set it it +1
@@ -202,9 +202,9 @@ game_loop:
     addi $t2 $t2 -2
     lw $t3 8($t0) # paddle right edge
     add $t3 $t3 $t1
-    blt $s2 $t2 end_check_paddle_bounce2 # correct height
-    ble $s1 $t1 end_check_paddle_bounce2 # left boundary
-    bgt $s1 $t3 end_check_paddle_bounce2 # right boundary
+    bne $s2 $t2 end_check_paddle_bounce2 # ball is incorrect height
+    ble $s1 $t1 end_check_paddle_bounce2 # ball is too left
+    bgt $s1 $t3 end_check_paddle_bounce2 # ball is too right
     check_paddle_bounce2:
         # $s4 = +1, then set it to -1
         # $s4 = -1, then set it it +1
